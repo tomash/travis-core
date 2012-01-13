@@ -8,13 +8,21 @@ class Request
     included do
       include SimpleStates, Branches
 
+      BLACKLIST_RULES = [
+        /\/rails$/
+      ]
+
+      WHITELIST_RULES = [
+        /^rails\/rails/
+      ]
+
       states :created, :started, :finished
       event :start,     :to => :started
       event :configure, :to => :configured, :after => :finish
       event :finish,    :to => :finished
 
       def approved?
-        branch_included?(commit.branch) && !branch_excluded?(commit.branch) && !rails_fork?
+        branch_included?(commit.branch) && !branch_excluded?(commit.branch) && !is_blacklisted?
       end
 
       def configure(data)
@@ -28,8 +36,17 @@ class Request
           attributes.symbolize_keys.slice(*attribute_names.map(&:to_sym))
         end
 
-        def rails_fork?
-          repository.slug != 'rails/rails' && repository.slug =~ %r(/rails$)
+        def is_blacklisted?
+          # whitelist trumps blacklist
+          WHITELIST_RULES.each do |rule|
+            return false if repository.slug =~ rule
+          end
+
+          BLACKLIST_RULES.each do |rule|
+            return true if repository.slug =~ rule
+          end
+
+          return false
         end
     end
   end

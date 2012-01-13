@@ -176,9 +176,9 @@ describe Request::States do
         request.should_not be_approved
       end
 
-      it 'if the repository is a rails fork' do
+      it 'if the repository is blacklisted (e.g. a rails fork)' do
         request.stubs(:config).returns({})
-        request.stubs(:rails_fork?).returns(true)
+        request.stubs(:is_blacklisted?).returns(true)
         request.should_not be_approved
       end
     end
@@ -191,24 +191,24 @@ describe Request::States do
     end
   end
 
-  describe 'rails_fork?' do
+  describe 'is_blacklisted?' do
     def with_slug(slug)
       request.stubs(:repository).returns(stub(:slug => slug))
     end
 
     it 'returns false for a repository slug travis-ci/travis-ci' do
       with_slug 'travis-ci/travis-ci'
-      request.send(:rails_fork?).should be_false
+      request.send(:is_blacklisted?).should be_false
     end
 
     it 'returns false for a repository slug rails/rails' do
       with_slug 'rails/rails'
-      request.send(:rails_fork?).should be_false
+      request.send(:is_blacklisted?).should be_false
     end
 
     it 'returns true for a repository slug travis-ci/rails' do
       with_slug 'travis-ci/rails'
-      request.send(:rails_fork?).should be_true
+      request.send(:is_blacklisted?).should be_true
     end
   end
 end
