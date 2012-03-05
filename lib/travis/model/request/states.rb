@@ -8,26 +8,28 @@ class Request
     included do
       include SimpleStates, Branches
 
-      BLACKLIST_RULES = [
-        /\/rails$/
-      ]
-
-      WHITELIST_RULES = [
-        /^rails\/rails/
-      ]
-
       states :created, :started, :finished
       event :start,     :to => :started
       event :configure, :to => :configured, :after => :finish
       event :finish,    :to => :finished
 
       def approved?
-        branch_included?(commit.branch) && !branch_excluded?(commit.branch) && !is_blacklisted?
+        branch_included?(commit.branch) && !branch_excluded?(commit.branch) && !blacklisted?
       end
 
       def configure(data)
         update_attributes!(extract_attributes(data))
         create_build! if approved?
+      end
+
+      class << self
+        def whitelist_rules
+          @@whitelist_rules ||= YAML.load_file('whiteblacklist.yml')['whitelist_rules'].map{|r| Regexp.new(r)} rescue []
+        end
+
+        def blacklist_rules
+          @@blacklist_rules ||= YAML.load_file('whiteblacklist.yml')['blacklist_rules'].map{|r| Regexp.new(r)} rescue []
+        end
       end
 
       protected
@@ -36,13 +38,13 @@ class Request
           attributes.symbolize_keys.slice(*attribute_names.map(&:to_sym))
         end
 
-        def is_blacklisted?
+        def blacklisted?
           # whitelist trumps blacklist
-          WHITELIST_RULES.each do |rule|
+          self.class.whitelist_rules.each do |rule|
             return false if repository.slug =~ rule
           end
 
-          BLACKLIST_RULES.each do |rule|
+          self.class.blacklist_rules.each do |rule|
             return true if repository.slug =~ rule
           end
 
